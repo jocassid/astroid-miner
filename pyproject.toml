@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "astroid-miner"
+version = "0.0.1"
+authors = [
+  { name="John Cassidy", email="jocassid@gmail.com" },
+]
+description = "A library to help in code analysis"
+keywords = [
+    "ast",
+    "astroid",
+    "code analysis",
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+]
+
+#[project.scripts]
+#pip-viz = "pip_viz:parse_args_and_call_main"
+
+[project.urls]
+Homepage = "https://github.com/jocassid/astroid-miner"
+Issues = "https://github.com/jocassid/astroid-miner/issues"
