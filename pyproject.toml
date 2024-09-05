@@ -24,9 +24,12 @@ classifiers = [
 dependencies = [
 ]
 
-#[project.scripts]
-#pip-viz = "pip_viz:parse_args_and_call_main"
+[project.scripts]
+astroid-miner = "cli:parse_args_and_call_main"
 
 [project.urls]
 Homepage = "https://github.com/jocassid/astroid-miner"
 Issues = "https://github.com/jocassid/astroid-miner/issues"
+
+#[tool.hatch.build.targets.wheel]
+#packages = ["src/astroid_miner"]

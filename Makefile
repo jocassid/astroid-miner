@@ -1,12 +1,17 @@
+vpath %.whl ./dist
+vpath %.tar.gz ./dist
+vpath %.py ./src/astroid_miner ./tests
 
-clean:
-	rm -f dist/*
+build: %.whl %.tar.gz
 
-build: clean
+%.whl %.tar.gz: pyproject.toml clean
 	python -m build
+
+pypi: build
+	python -m twine upload dist/*
 
 test_pypi: build
 	python -m twine upload --repository testpypi dist/*
 
-pypi: build
-	python -m twine upload dist/*
+clean:
+	rm -f dist/*
