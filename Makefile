@@ -2,6 +2,7 @@ vpath %.whl ./dist
 vpath %.tar.gz ./dist
 vpath %.py ./src/astroid_miner ./tests
 
+
 build: %.whl %.tar.gz
 
 %.whl %.tar.gz: pyproject.toml clean
@@ -15,3 +16,6 @@ test_pypi: build
 
 clean:
 	rm -f dist/*
+
+test:
+	export PYTHONPATH=src/; pytest
