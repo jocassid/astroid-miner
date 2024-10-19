@@ -18,4 +18,5 @@ clean:
 	rm -f dist/*
 
 test:
-	export PYTHONPATH=src/; pytest
+	pytest -vv
+	#export PYTHONPATH=src/; pytest -vv

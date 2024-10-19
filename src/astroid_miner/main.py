@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from copy import deepcopy
-# find_spec allows us to find the file path to a module
-from importlib.util import find_spec
+from importlib.machinery import PathFinder
 from itertools import chain
-from pathlib import Path
-from sys import path as sys_path
-from typing import Set
+from os import pathsep
+from os.path import abspath
+from sys import path as sys_path, stderr
+from typing import List, Set
 
 
 class Command:
@@ -21,44 +20,61 @@ class CallDiagramCommand(Command):
         print(f'CallDiagramCommand.run({args=})')
 
         target = args.target
-        append_path = args.append_path or ''
 
-        all_paths = []
-        path_set: Set[Path] = set()
+        python_path = self.get_python_path(
+            args.append_path or '',
+            args.substitute_path or '',
+        )
+        python_path = [str(p) for p in python_path]
 
-        for path_item in chain(sys_path, append_path.split(':')):
-            path_item = Path(path_item).absolute()
+        module_name = ''
+        path_finder = PathFinder()
+
+        target_pieces = target.split('.')
+        target_piece_count = len(target_pieces)
+        for i, target_piece in enumerate(target_pieces):
+            if module_name:
+                module_name = f"{module_name}.{target_piece}"
+            else:
+                module_name = target_piece
+            spec = path_finder.find_spec(module_name, path=python_path)
+            if not spec:
+                continue
+
+            next_index = i + 1
+            if next_index >= target_piece_count:
+                continue
+
+            print(
+                "module_name={} spec.origin={} remaining_target_piece={}".format(
+                    module_name,
+                    spec.origin,
+                    target_pieces[next_index:]
+                )
+            )
+
+    @staticmethod
+    def get_python_path(append_path, substitute_path) -> List[str]:
+        python_path = []
+        path_set: Set[str] = set()
+
+        if substitute_path:
+            path_collection = [substitute_path.split(pathsep)]
+        else:
+            path_collection = [sys_path]
+            if append_path:
+                path_collection.insert(0, append_path.split(pathsep))
+            else:
+                return sys_path
+
+        for path_item in chain(*path_collection):
+            path_item = abspath(path_item)
             if path_item in path_set:
                 continue
-            all_paths.append(path_item)
             path_set.add(path_item)
+            python_path.append(path_item)
 
-        for path_item in all_paths:
-            modules = self.find_modules(
-                target.split('.'),
-                path_item,
-            )
-            print(modules)
-            break
-
-    def get_path(self, append_path, ):
-        pass
-
-    def find_modules(self, target_pieces, directory, depth=0):
-        if depth > 5:
-            return
-
-        pass
-
-
-
-
-
-
-
-
-
-
+        return python_path
 
 
 def call_diagram(args):
@@ -114,42 +130,6 @@ class CallDiagramSubParserBuilder(SubParserBuilder):
 
     @staticmethod
     def build_levels_option_group(sub_parser):
-        pass
-
-
-class ArgumentParserBuilder:
-
-    def build(self):
-        parser = ArgumentParser(
-            description="Analyze Python source code",
-        )
-        sub_parsers = parser.add_subparsers(
-            help='sub-command help',
-        )
-
-        for sub_parser_builder in (
-                CallDiagramSubParserBuilder(),
-        ):
-            sub_parser_builder.build(sub_parsers)
-
-        return parser
-
-    def add_call_diagram_subparser(self, sub_parsers):
-        sub_parser = sub_parsers.add_parser(
-            'call_diagram',
-            help='generate diagram of calls'
-        )
-
-        group = sub_parser.add_mutually_exclusive_group(required=False)
-
-
-        sub_parser.add_argument(
-            '-a', '--append-path',
-            help="A colon separated lists of directories to search in "
-                 "addition to those in sys.path",
-            metavar='PATH'
-        )
-
         group = sub_parser.add_mutually_exclusive_group(required=True)
 
         def add_group_argument(flag, help_text):
@@ -174,22 +154,32 @@ class ArgumentParserBuilder:
             "backward specified number of levels"
         )
 
-        sub_parser.add_argument(
-            'target',
-            help="Starting point for the call diagram.  This may be a "
-                 "function or a method.  Specify module and function or "
-                 "method.  When the target is a function, this argument takes "
-                 "the form of MODULE.FUNCTION.  For methods this argument "
-                 "takes the form of MODULE.CLASS.FUNCTION",
-            metavar='TARGET',
+
+class ArgumentParserBuilder:
+
+    def build(self):
+        parser = ArgumentParser(
+            description="Analyze Python source code",
         )
-        sub_parser.set_defaults(func=call_diagram)
+        sub_parsers = parser.add_subparsers(
+            help='sub-command help',
+        )
+
+        for sub_parser_builder in (
+                CallDiagramSubParserBuilder(),
+        ):
+            sub_parser_builder.build(sub_parsers)
+
+        return parser
 
 
 def parse_args_and_call_main():
 
     arg_parser = ArgumentParserBuilder().build()
     args = arg_parser.parse_args()
+    if not hasattr(args, 'func'):
+        print("No sub-command given")
+        return
     args.func(args)
 
 
