@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from importlib.machinery import PathFinder
+from importlib.machinery import ModuleSpec, PathFinder
 from itertools import chain
+from logging import basicConfig, getLogger, INFO
 from os import pathsep
-from os.path import abspath
+from os.path import abspath, basename
+from pathlib import Path
 from sys import path as sys_path, stderr
-from typing import List, Set
+from typing import List, Optional, Set, Tuple
+
+
+logger = getLogger(__name__)
 
 
 class Command:
@@ -17,44 +22,82 @@ class Command:
 class CallDiagramCommand(Command):
 
     def run(self, args):
-        print(f'CallDiagramCommand.run({args=})')
+        print(f'CallDiagramCommand.run({args=})\n')
 
-        target = args.target
+        target: str = args.target
 
         python_path = self.get_python_path(
             args.append_path or '',
             args.substitute_path or '',
         )
-        python_path = [str(p) for p in python_path]
 
+        module_spec, remaining_pieces = self.find_module_spec(
+            target,
+            [str(p) for p in python_path],
+        )
+
+        if not module_spec:
+            print(f"Unable to locate module containing {target}")
+            return
+
+        starting_module_path, remaining_pieces = self.locate_starting_module(
+            module_spec.origin,
+            remaining_pieces
+        )
+        print(f"{starting_module_path=}")
+        print(f"{remaining_pieces=}")
+
+
+    @staticmethod
+    def locate_starting_module(
+            origin: str,
+            remaining_pieces: List[str],
+    ) -> Tuple[Path, List[str]]:
+        origin_base = basename(origin)
+        if origin_base != '__init__.py':
+            return Path(origin), remaining_pieces
+        if not remaining_pieces:
+            raise ValueError("No remaining pieces")
+
+        module_path = Path(origin).parent / f"{remaining_pieces.pop(0)}.py"
+        if not module_path.exists():
+            raise ValueError(f"{module_path} not found")
+        return module_path, remaining_pieces
+
+    @staticmethod
+    def find_module_spec(
+            target: str,
+            python_path: List[str],
+    ) -> Tuple[Optional[ModuleSpec], List[str]]:
         module_name = ''
         path_finder = PathFinder()
 
         target_pieces = target.split('.')
-        target_piece_count = len(target_pieces)
-        for i, target_piece in enumerate(target_pieces):
+        output_data: Tuple[Optional[ModuleSpec], List[str]] = (None, [])
+        while len(target_pieces) > 1:
+            target_piece = target_pieces.pop(0)
             if module_name:
                 module_name = f"{module_name}.{target_piece}"
             else:
                 module_name = target_piece
+
             spec = path_finder.find_spec(module_name, path=python_path)
             if not spec:
                 continue
 
-            next_index = i + 1
-            if next_index >= target_piece_count:
-                continue
-
-            print(
-                "module_name={} spec.origin={} remaining_target_piece={}".format(
-                    module_name,
-                    spec.origin,
-                    target_pieces[next_index:]
+            if output_data != (None, []):
+                logger.warning(
+                    f"Multiple ModuleSpecs found.  Prior spec and remaining "
+                    f"target pieces are {output_data[0]} and {output_data[1]} "
+                    f"respectively."
                 )
-            )
+
+            output_data = (spec, target_pieces.copy())
+
+        return output_data
 
     @staticmethod
-    def get_python_path(append_path, substitute_path) -> List[str]:
+    def get_python_path(append_path: str, substitute_path: str) -> List[str]:
         python_path = []
         path_set: Set[str] = set()
 
@@ -132,23 +175,27 @@ class CallDiagramSubParserBuilder(SubParserBuilder):
     def build_levels_option_group(sub_parser):
         group = sub_parser.add_mutually_exclusive_group(required=True)
 
-        def add_group_argument(flag, help_text):
+        def add_group_argument(flag1, flag2, help_text):
             group.add_argument(
-                flag,
+                flag1,
+                flag2,
                 type=int,
                 help=help_text,
                 metavar='LEVELS',
             )
 
         add_group_argument(
-            '--calls',
+            '-f',
+            '--forward',
             "Show calls from target function forward specified number of levels",
         )
         add_group_argument(
-            '--callers',
+            '-b',
+            '--backward',
             "Shows calls to target function backward specified number of levels",
         )
         add_group_argument(
+            '-r',
             '--radius',
             "Shows calls to and calls from target function forward and "
             "backward specified number of levels"
@@ -173,15 +220,16 @@ class ArgumentParserBuilder:
         return parser
 
 
-def parse_args_and_call_main():
+def main():
+    basicConfig(filename='astroid_miner.log', level=INFO)
 
     arg_parser = ArgumentParserBuilder().build()
     args = arg_parser.parse_args()
     if not hasattr(args, 'func'):
-        print("No sub-command given")
+        print("No sub-command given", stderr)
         return
     args.func(args)
 
 
 if __name__ == '__main__':
-    parse_args_and_call_main()
+    main()
