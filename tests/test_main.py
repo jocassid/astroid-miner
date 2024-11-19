@@ -7,7 +7,7 @@ from sys import path as sys_path
 
 import pytest
 
-from astroid_miner.main import CallDiagramCommand
+from astroid_miner.commands import CallDiagramCommand
 
 
 TESTS_ROOT = dirname(__file__)
