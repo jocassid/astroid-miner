@@ -1,12 +1,9 @@
 
 from argparse import Namespace
 from importlib.machinery import ModuleSpec, PathFinder
-from itertools import chain
 from logging import getLogger
-from os import pathsep
-from os.path import abspath, basename
+from os.path import basename
 from pathlib import Path
-from sys import path as sys_path
 from typing import List, Optional, Set, Tuple
 
 from .command import Command
@@ -17,9 +14,7 @@ logger = getLogger(__name__)
 
 class CallDiagramCommand(Command):
 
-    def run(self, args: Namespace, python_path: List[str]) -> int:
-        print(f'CallDiagramCommand.run({args=}, {python_path=})\n')
-
+    def run_inner(self, args: Namespace, python_path: List[str]) -> int:
         target: str = args.target
 
         module_spec, remaining_pieces = self.find_module_spec(

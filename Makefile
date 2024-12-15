@@ -18,5 +18,5 @@ clean:
 	rm -f dist/*
 
 test:
-	pytest -vv
-	#export PYTHONPATH=src/; pytest -vv
+	#pytest -vv
+	export PYTHONPATH=src/astroid_miner; pytest -vv

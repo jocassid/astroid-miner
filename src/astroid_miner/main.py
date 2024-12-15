@@ -8,7 +8,7 @@ from os.path import abspath
 from sys import exit, path as sys_path, stderr
 from typing import Set
 
-from commands import CallDiagramCommand
+from commands import CallDiagramCommand, ShowPathCommand
 
 
 logger = getLogger(__name__)
@@ -34,16 +34,13 @@ def build_path_option_group(parser: ArgumentParser):
         metavar=metavar
     )
 
-    parser.add_argument(
-        '-l',
-        '--list-path',
-        action='store_true',
-        help="Show path and exit"
-    )
-
 
 def call_diagram(args: Namespace):
     CallDiagramCommand().run(args)
+
+
+def show_path(args: Namespace):
+    ShowPathCommand().run(args)
 
 
 class SubParserBuilder:
@@ -106,6 +103,18 @@ class CallDiagramSubParserBuilder(SubParserBuilder):
         )
 
 
+class ShowPathSubParserBuilder(SubParserBuilder):
+
+    def build(self, sub_parsers) -> None:
+        sub_parser = sub_parsers.add_parser(
+            'show_path',
+            help='show path to be used by '
+        )
+
+        build_path_option_group(sub_parser)
+        sub_parser.set_defaults(func=show_path)
+
+
 class ArgumentParserBuilder:
 
     def build(self):
@@ -119,36 +128,11 @@ class ArgumentParserBuilder:
 
         for sub_parser_builder in (
                 CallDiagramSubParserBuilder(),
+                ShowPathSubParserBuilder(),
         ):
             sub_parser_builder.build(sub_parsers)
 
         return parser
-
-
-def get_python_path(args: Namespace):
-
-    append_path: str = args.append_path or ''
-    substitute_path: str = args.substitute_path or ''
-    python_path = []
-    path_set: Set[str] = set()
-
-    if substitute_path:
-        path_collection = [substitute_path.split(pathsep)]
-    else:
-        path_collection = [sys_path]
-        if append_path:
-            path_collection.insert(0, append_path.split(pathsep))
-        else:
-            return sys_path
-
-    for path_item in chain(*path_collection):
-        path_item = abspath(path_item)
-        if path_item in path_set:
-            continue
-        path_set.add(path_item)
-        python_path.append(path_item)
-
-    return python_path
 
 
 def main():
@@ -156,19 +140,11 @@ def main():
 
     arg_parser = ArgumentParserBuilder().build()
     args = arg_parser.parse_args()
-    python_path = get_python_path(args)
-
-    print(f"{args=}")
-
-    if args.list_path:
-        for path in python_path:
-            print(path)
-        exit(1)
 
     if not hasattr(args, 'func'):
         print("No sub-command given", stderr)
         return
-    args.func(args, python_path)
+    args.func(args)
 
 
 if __name__ == '__main__':
