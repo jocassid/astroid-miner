@@ -6,6 +6,8 @@ from os.path import basename
 from pathlib import Path
 from typing import List, Optional, Set, Tuple
 
+from astroid import parse
+
 from .command import Command
 
 
@@ -16,6 +18,7 @@ class CallDiagramCommand(Command):
 
     def run_inner(self, args: Namespace, python_path: List[str]) -> int:
         target: str = args.target
+        print(f"{target=}")
 
         module_spec, remaining_pieces = self.find_module_spec(
             target,
@@ -32,6 +35,21 @@ class CallDiagramCommand(Command):
         )
         print(f"{starting_module_path=}")
         print(f"{remaining_pieces=}")
+
+        with open(starting_module_path, 'r') as in_file:
+            module = parse(
+                in_file.read(),
+                # module_name=target,
+                path=str(starting_module_path)
+            )
+
+        print(module)
+
+    @staticmethod
+    def get_module_name(target: str, remaining_pieces: List[str]) -> str:
+        target_pieces = target.split('.')
+        remaining_pieces = remaining_pieces.copy()
+
 
     @staticmethod
     def locate_starting_module(

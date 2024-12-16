@@ -20,3 +20,6 @@ clean:
 test:
 	#pytest -vv
 	export PYTHONPATH=src/astroid_miner; pytest -vv
+
+repl:
+	export PYTHONPATH=src/astroid_miner; python
