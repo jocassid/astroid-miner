@@ -4,6 +4,11 @@ from itertools import chain
 from os.path import abspath
 from sys import path as sys_path
 
+from sys import path as sys_path
+for path in sys_path:
+    print(path)
+
+
 from pytest import raises
 
 from astroid_miner.commands import Command
